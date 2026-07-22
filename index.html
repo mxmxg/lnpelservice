@@ -828,7 +828,7 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
         </div>
         <div class="contact-row">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></div>
-          <div><b>E-post</b><a href="mailto:info@lnpelservice.se">info@lnpelservice.se</a><br><span style="font-size:.78rem">(byt till din riktiga adress)</span></div>
+          <div><b>E-post</b><a href="mailto:info@lnpelservice.se">info@lnpelservice.se</a></div>
         </div>
         <div class="contact-row">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
@@ -840,21 +840,31 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
         </div>
       </div>
 
-      <form onsubmit="return sendForm(event)">
+      <form id="offertForm" onsubmit="return sendForm(event)">
         <div class="field">
-          <label for="namn">Namn</label>
+          <label for="namn">Namn <span style="color:var(--green-dark)">*</span></label>
           <input id="namn" name="namn" type="text" placeholder="Ditt namn" required>
         </div>
         <div class="field">
-          <label for="tel">Telefon eller e-post</label>
-          <input id="tel" name="tel" type="text" placeholder="Så vi kan nå dig" required>
+          <label for="foretag">Företag <span style="color:var(--muted);font-weight:400;font-size:.85em">(frivilligt)</span></label>
+          <input id="foretag" name="foretag" type="text" placeholder="Om förfrågan gäller ett företag">
         </div>
         <div class="field">
-          <label for="meddelande">Vad kan vi hjälpa dig med?</label>
+          <label for="epost">E-post <span style="color:var(--green-dark)">*</span></label>
+          <input id="epost" name="epost" type="email" placeholder="namn@exempel.se" required>
+        </div>
+        <div class="field">
+          <label for="tel">Telefon <span style="color:var(--green-dark)">*</span></label>
+          <input id="tel" name="tel" type="tel" placeholder="07X-XXX XX XX" required>
+        </div>
+        <div class="field">
+          <label for="meddelande">Vad kan vi hjälpa dig med? <span style="color:var(--green-dark)">*</span></label>
           <textarea id="meddelande" name="meddelande" placeholder="Beskriv kort ditt projekt..." required></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">Skicka förfrågan</button>
-        <p class="form-note">Formuläret öppnar din e-postklient. Vill du att förfrågningar skickas automatiskt till en inkorg kan jag koppla på det.</p>
+        <!-- spamfälla: dold för riktiga besökare -->
+        <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
+        <button type="submit" id="offertSubmit" class="btn btn-primary" style="width:100%;justify-content:center">Skicka förfrågan</button>
+        <p class="form-note" id="formStatus">Vi svarar oftast inom 24 timmar. Din förfrågan skickas direkt till oss – ingen mejlapp öppnas.</p>
       </form>
     </div>
   </div>
@@ -1137,15 +1147,43 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
   menuBtn.addEventListener('click',function(){nav.classList.toggle('open')});
   nav.querySelectorAll('ul a').forEach(function(a){a.addEventListener('click',function(){nav.classList.remove('open')})});
 
-  // Kontaktformulär -> öppnar e-post
+  // Kontaktformulär -> skickar direkt till inkorgen (ingen mejlapp öppnas)
   function sendForm(e){
     e.preventDefault();
-    var namn=document.getElementById('namn').value;
-    var tel=document.getElementById('tel').value;
-    var med=document.getElementById('meddelande').value;
-    var body=encodeURIComponent('Namn: '+namn+'\nKontakt: '+tel+'\n\n'+med);
-    var subject=encodeURIComponent('Förfrågan från hemsidan – '+namn);
-    window.location.href='mailto:info@lnpelservice.se?subject='+subject+'&body='+body;
+    var form=e.target;
+    var btn=document.getElementById('offertSubmit');
+    var status=document.getElementById('formStatus');
+    // spamfälla ifylld = bot -> avbryt tyst
+    if(form._gotcha && form._gotcha.value){return false;}
+    var payload={
+      namn:document.getElementById('namn').value.trim(),
+      foretag:document.getElementById('foretag').value.trim() || '(ej angivet)',
+      epost:document.getElementById('epost').value.trim(),
+      telefon:document.getElementById('tel').value.trim(),
+      meddelande:document.getElementById('meddelande').value.trim(),
+      _subject:'Ny förfrågan från hemsidan – '+document.getElementById('namn').value.trim(),
+      _template:'table',
+      _captcha:'false'
+    };
+    var oldLabel=btn.textContent;
+    btn.disabled=true; btn.textContent='Skickar…';
+    status.style.color=''; status.textContent='Skickar din förfrågan…';
+    fetch('https://formsubmit.co/ajax/lnp.johan@gmail.com',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(function(r){return r.json();}).then(function(data){
+      if(data && (data.success===true || data.success==='true')){
+        form.reset();
+        btn.textContent='Skickat ✓';
+        status.style.color='var(--green-dark)';
+        status.textContent='Tack! Din förfrågan är skickad – vi hör av oss så snart vi kan.';
+      } else { throw new Error('fail'); }
+    }).catch(function(){
+      btn.disabled=false; btn.textContent=oldLabel;
+      status.style.color='#b23b3b';
+      status.innerHTML='Kunde inte skicka just nu. Ring oss på <a href="tel:0704714220">070-471 42 20</a> eller maila <a href="mailto:info@lnpelservice.se">info@lnpelservice.se</a>.';
+    });
     return false;
   }
 </script>
