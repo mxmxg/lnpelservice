@@ -1,0 +1,14 @@
+{
+  "name": "lnpelservice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Statisk landningssida för LNP Elservice",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

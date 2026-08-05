@@ -1147,6 +1147,28 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
   menuBtn.addEventListener('click',function(){nav.classList.toggle('open')});
   nav.querySelectorAll('ul a').forEach(function(a){a.addEventListener('click',function(){nav.classList.remove('open')})});
 
+  // Rena, testbara hjälpfunktioner (inga sidoeffekter) -------------------
+  // Bygger payloaden som skickas till formsubmit.co utifrån råa fältvärden.
+  function buildPayload(fields){
+    var namn=(fields.namn||'').trim();
+    return {
+      namn:namn,
+      foretag:(fields.foretag||'').trim() || '(ej angivet)',
+      epost:(fields.epost||'').trim(),
+      telefon:(fields.telefon||'').trim(),
+      meddelande:(fields.meddelande||'').trim(),
+      _subject:'Ny förfrågan från hemsidan – '+namn,
+      _template:'table',
+      _captcha:'false'
+    };
+  }
+  // Tolkar svaret från formsubmit.co (success kan komma som bool eller sträng).
+  function isSuccess(data){
+    return !!(data && (data.success===true || data.success==='true'));
+  }
+  // Exponera för tester utan att ändra körningsbeteendet.
+  window.LNP={buildPayload:buildPayload,isSuccess:isSuccess};
+
   // Kontaktformulär -> skickar direkt till inkorgen (ingen mejlapp öppnas)
   function sendForm(e){
     e.preventDefault();
@@ -1155,16 +1177,13 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
     var status=document.getElementById('formStatus');
     // spamfälla ifylld = bot -> avbryt tyst
     if(form._gotcha && form._gotcha.value){return false;}
-    var payload={
-      namn:document.getElementById('namn').value.trim(),
-      foretag:document.getElementById('foretag').value.trim() || '(ej angivet)',
-      epost:document.getElementById('epost').value.trim(),
-      telefon:document.getElementById('tel').value.trim(),
-      meddelande:document.getElementById('meddelande').value.trim(),
-      _subject:'Ny förfrågan från hemsidan – '+document.getElementById('namn').value.trim(),
-      _template:'table',
-      _captcha:'false'
-    };
+    var payload=buildPayload({
+      namn:document.getElementById('namn').value,
+      foretag:document.getElementById('foretag').value,
+      epost:document.getElementById('epost').value,
+      telefon:document.getElementById('tel').value,
+      meddelande:document.getElementById('meddelande').value
+    });
     var oldLabel=btn.textContent;
     btn.disabled=true; btn.textContent='Skickar…';
     status.style.color=''; status.textContent='Skickar din förfrågan…';
@@ -1173,7 +1192,7 @@ M4862 2289 c-79 -7 -109 -13 -129 -29 -14 -11 -41 -22 -62 -26 -20 -4 -43 -13
       headers:{'Content-Type':'application/json','Accept':'application/json'},
       body:JSON.stringify(payload)
     }).then(function(r){return r.json();}).then(function(data){
-      if(data && (data.success===true || data.success==='true')){
+      if(isSuccess(data)){
         form.reset();
         btn.textContent='Skickat ✓';
         status.style.color='var(--green-dark)';
